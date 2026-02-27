@@ -16,6 +16,7 @@ class SessionResponse(BaseModel):
     persona_name: str | None = None
     persona_avatar_url: str | None = None
     status: str
+    last_persona_message: str | None = None
     created_at: datetime
     updated_at: datetime
 

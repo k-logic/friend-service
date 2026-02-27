@@ -1,7 +1,7 @@
 from typing import Union
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -10,6 +10,7 @@ from app.models.user import User
 from app.models.staff_member import StaffMember, StaffRole
 from app.models.persona import Persona
 from app.models.session import Session, SessionStatus
+from app.models.message import Message, SenderType
 from app.schemas.session import SessionCreateRequest, SessionResponse
 from app.services.account_service import (
     get_display_name_map,
@@ -85,6 +86,32 @@ async def list_sessions(
     user_avatar_map = await get_user_avatar_map(db, user_ids)
     persona_map = await get_persona_name_map(db, persona_ids)
     persona_avatar_map = await get_persona_avatar_map(db, persona_ids)
+
+    # 各セッションの最新ペルソナメッセージを取得
+    session_ids = [s.id for s in sessions]
+    last_msg_map: dict[int, str] = {}
+    if session_ids:
+        # セッションごとの最新ペルソナメッセージIDを取得
+        sub = (
+            select(
+                Message.session_id,
+                func.max(Message.id).label("max_id"),
+            )
+            .where(
+                Message.session_id.in_(session_ids),
+                Message.sender_type == SenderType.persona,
+            )
+            .group_by(Message.session_id)
+            .subquery()
+        )
+        stmt_msg = select(Message).join(
+            sub,
+            (Message.session_id == sub.c.session_id) & (Message.id == sub.c.max_id),
+        )
+        msg_result = await db.execute(stmt_msg)
+        for msg in msg_result.scalars().all():
+            last_msg_map[msg.session_id] = msg.content
+
     return [
         SessionResponse.model_validate(s, from_attributes=True).model_copy(
             update={
@@ -92,6 +119,7 @@ async def list_sessions(
                 "user_avatar_url": user_avatar_map.get(s.user_id),
                 "persona_name": persona_map.get(s.persona_id),
                 "persona_avatar_url": persona_avatar_map.get(s.persona_id),
+                "last_persona_message": last_msg_map.get(s.id),
             }
         )
         for s in sessions

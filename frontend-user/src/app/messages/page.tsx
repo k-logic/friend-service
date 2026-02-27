@@ -10,6 +10,7 @@ type Session = {
   id: number;
   persona_id: number;
   status: string;
+  last_persona_message: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -83,7 +84,9 @@ export default function MessagesPage() {
                     </span>
                   </div>
                   <p className="text-sm text-gray-500 truncate">
-                    {s.status === "active" ? "チャット中" : "終了"}
+                    {s.last_persona_message
+                      ? s.last_persona_message.slice(0, 15) + (s.last_persona_message.length > 15 ? "..." : "")
+                      : "メッセージはまだありません"}
                   </p>
                 </div>
               </Link>
