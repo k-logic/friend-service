@@ -29,7 +29,7 @@ proxy-node-1/2    → Nginx プロキシ（スタッフIP隠匿）
 
 - Docker / Docker Compose
 
-### 起動
+### 開発環境
 
 ```bash
 # 全サービス起動
@@ -37,12 +37,23 @@ docker compose up -d
 
 # マイグレーション実行
 docker compose exec api alembic upgrade head
+
+# テストデータ投入
+docker compose exec api python -m scripts.seed
 ```
 
 起動後:
 - ユーザー画面: http://localhost:3000
 - スタッフ管理画面: http://localhost:3001
 - API: http://localhost:8080（プロキシ経由）
+
+テストアカウント:
+
+| ロール | メール | パスワード |
+|--------|--------|-----------|
+| admin | admin@example.com | admin1234 |
+| staff | staff@example.com | staff1234 |
+| user | user@example.com | user1234 |
 
 ## 主な機能
 
@@ -103,11 +114,62 @@ JWT トークンベースの認証。3つのロール:
 
 ## 本番デプロイ
 
-`deploy/DEPLOY.md` に詳細な手順を記載。
+詳細な手順は `deploy/DEPLOY.md` を参照。
+
+### 1. 環境変数ファイルの作成
 
 ```bash
-# 本番起動
+cat > .env.prod << 'EOF'
+SECRET_KEY=<ランダムな長い文字列>
+POSTGRES_PASSWORD=<強いパスワード>
+FRONTEND_API_URL=http://<サーバーIP>:8080
+ALLOWED_ORIGINS=http://<サーバーIP>:3000,http://<サーバーIP>:3001
+EOF
+```
+
+SECRET_KEY の生成:
+```bash
+python3 -c "import secrets; print(secrets.token_urlsafe(64))"
+```
+
+> SSL 構築後は `FRONTEND_API_URL` と `ALLOWED_ORIGINS` を `https://` のドメインに変更してください。
+
+### 2. 起動
+
+```bash
+# ビルド & 起動
 docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.prod up -d --build
+
+# マイグレーション
+docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.prod exec api alembic upgrade head
+
+# テストデータ投入
+docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.prod exec api python -m scripts.seed
+```
+
+### 3. 更新時
+
+```bash
+git pull
+docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.prod up -d --build
+docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.prod exec api alembic upgrade head
+```
+
+### 4. SSL 切り替え
+
+Nginx + Let's Encrypt の構築後、`.env.prod` を更新:
+
+```
+FRONTEND_API_URL=https://api.example.com
+ALLOWED_ORIGINS=https://app.example.com,https://staff.example.com
+```
+
+```bash
+# フロントエンドは再ビルド（NEXT_PUBLIC_API_URL がビルド時に埋め込まれるため）
+docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.prod up -d --build frontend-user frontend-staff
+
+# API は再作成のみ
+docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.prod up -d --force-recreate api
 ```
 
 ## ライセンス
