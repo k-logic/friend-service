@@ -31,9 +31,8 @@ cd /path/to/friend
 cat > .env.prod << 'EOF'
 SECRET_KEY=ここにランダムな文字列を設定
 POSTGRES_PASSWORD=ここに強いパスワードを設定
-API_DOMAIN=api.example.com
-APP_DOMAIN=app.example.com
-STAFF_DOMAIN=staff.example.com
+FRONTEND_API_URL=http://<サーバーIP>:8080
+ALLOWED_ORIGINS=http://<サーバーIP>:3000,http://<サーバーIP>:3001
 EOF
 ```
 
@@ -41,6 +40,8 @@ SECRET_KEY の生成例:
 ```bash
 python3 -c "import secrets; print(secrets.token_urlsafe(64))"
 ```
+
+> SSL 構築後は `FRONTEND_API_URL` と `ALLOWED_ORIGINS` を `https://` のドメインに変更してください。
 
 ### 2. ファイアウォール設定
 
@@ -62,10 +63,13 @@ DB(5432) と Redis(6379) は `127.0.0.1` にバインドされるので外部か
 docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.prod up -d --build
 
 # マイグレーション実行
-docker compose exec api alembic upgrade head
+docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.prod exec api alembic upgrade head
+
+# テストデータ投入（必要な場合）
+docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.prod exec api python -m scripts.seed
 
 # ログ確認
-docker compose logs -f
+docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.prod logs -f
 ```
 
 ---
@@ -80,22 +84,16 @@ docker compose logs -f
 
 ```bash
 # 設定ファイルをコピー
-sudo cp deploy/nginx/app.example.com.conf /etc/nginx/sites-available/app.example.com
-sudo cp deploy/nginx/staff.example.com.conf /etc/nginx/sites-available/staff.example.com
-sudo cp deploy/nginx/api.example.com.conf /etc/nginx/sites-available/api.example.com
+sudo cp deploy/nginx/friend.conf /etc/nginx/sites-available/friend
 
 # ドメイン名を一括置換（例: example.com → yourdomain.com）
-sudo sed -i 's/example.com/yourdomain.com/g' /etc/nginx/sites-available/app.yourdomain.com
-sudo sed -i 's/example.com/yourdomain.com/g' /etc/nginx/sites-available/staff.yourdomain.com
-sudo sed -i 's/example.com/yourdomain.com/g' /etc/nginx/sites-available/api.yourdomain.com
+sudo sed -i 's/example.com/yourdomain.com/g' /etc/nginx/sites-available/friend
 
 # アプリサーバーIPを置換（例: 192.168.1.100）
-sudo sed -i 's/APP_SERVER_IP/192.168.1.100/g' /etc/nginx/sites-available/*.conf
+sudo sed -i 's/APP_SERVER_IP/192.168.1.100/g' /etc/nginx/sites-available/friend
 
 # 有効化
-sudo ln -s /etc/nginx/sites-available/app.yourdomain.com /etc/nginx/sites-enabled/
-sudo ln -s /etc/nginx/sites-available/staff.yourdomain.com /etc/nginx/sites-enabled/
-sudo ln -s /etc/nginx/sites-available/api.yourdomain.com /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/friend /etc/nginx/sites-enabled/
 ```
 
 ### 5. SSL 証明書の取得（Let's Encrypt）
@@ -138,7 +136,7 @@ curl https://api.yourdomain.com/health
 cd /path/to/friend
 git pull
 docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.prod up -d --build
-docker compose exec api alembic upgrade head
+docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.prod exec api alembic upgrade head
 ```
 
 ## ポート一覧
