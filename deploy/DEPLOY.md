@@ -76,7 +76,22 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.
 
 ## プロキシサーバー側
 
-### 4. Nginx 設定
+### 4. DNS 設定
+
+3つのサブドメインの A レコードを**プロキシサーバーのグローバルIP**に向ける:
+
+| レコード | ホスト名 | 値 |
+|---------|---------|-----|
+| A | app.example.com | プロキシサーバーのグローバルIP |
+| A | staff.example.com | プロキシサーバーのグローバルIP |
+| A | api.example.com | プロキシサーバーのグローバルIP |
+
+反映確認:
+```bash
+dig +short app.example.com
+```
+
+### 5. Nginx 設定
 
 設定ファイルをコピーし、2箇所を置換:
 - `example.com` → 実際のドメイン
@@ -96,7 +111,7 @@ sudo sed -i 's/APP_SERVER_IP/192.168.1.100/g' /etc/nginx/sites-available/friend
 sudo ln -s /etc/nginx/sites-available/friend /etc/nginx/sites-enabled/
 ```
 
-### 5. SSL 証明書の取得（Let's Encrypt）
+### 6. SSL 証明書の取得（Let's Encrypt）
 
 初回は SSL 証明書がまだないので段階的にセットアップ:
 
