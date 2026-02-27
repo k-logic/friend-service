@@ -4,9 +4,8 @@
 # 事前に .env.prod を作成してください:
 #   SECRET_KEY=<ランダムな長い文字列>
 #   POSTGRES_PASSWORD=<強いパスワード>
-#   API_DOMAIN=api.example.com
-#   APP_DOMAIN=app.example.com
-#   STAFF_DOMAIN=staff.example.com
+#   ALLOWED_ORIGINS=https://app.example.com,https://staff.example.com
+#   FRONTEND_API_URL=https://api.example.com
 
 services:
   api:
@@ -15,7 +14,7 @@ services:
     environment:
       - DATABASE_URL=postgresql+asyncpg://friend:${POSTGRES_PASSWORD}@db:5432/friend
       - SECRET_KEY=${SECRET_KEY}
-      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-https://${APP_DOMAIN},https://${STAFF_DOMAIN}}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
     volumes:
       - upload_data:/app/uploads
       # 開発用のソースマウントを無効化（イメージ内のコードを使う）
@@ -44,12 +43,12 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - NEXT_PUBLIC_API_URL=${FRONTEND_API_URL:-https://${API_DOMAIN}}
+      - NEXT_PUBLIC_API_URL=${FRONTEND_API_URL}
     volumes: []
 
   frontend-staff:
     ports:
       - "3001:3001"
     environment:
-      - NEXT_PUBLIC_API_URL=${FRONTEND_API_URL:-https://${API_DOMAIN}}
+      - NEXT_PUBLIC_API_URL=${FRONTEND_API_URL}
     volumes: []
