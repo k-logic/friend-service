@@ -155,7 +155,7 @@ export default function OperatorPage() {
               </div>
 
               {/* メッセージ */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              <div className="flex-1 overflow-y-auto p-4 space-y-4">
                 {messages.map((msg) => {
                   const isPersona = msg.sender_type === "persona";
                   const avatarUrl = isPersona ? selectedSession.persona_avatar_url : selectedSession.user_avatar_url;
@@ -163,16 +163,28 @@ export default function OperatorPage() {
                     ? (selectedSession.persona_name || "ペルソナ")
                     : (msg.sender_display_name || `ユーザ #${msg.sender_id}`);
                   return (
-                    <div key={msg.id} className={`flex items-end gap-2 ${isPersona ? "justify-end" : "justify-start"}`}>
-                      {!isPersona && <Avatar src={avatarUrl} name={senderName} size={28} />}
-                      <div className={`max-w-md px-3 py-2 rounded text-sm ${isPersona ? "bg-pink-100" : "bg-orange-100"}`}>
-                        <p className="font-bold text-xs mb-1">{senderName}</p>
-                        <p className="whitespace-pre-wrap">{msg.content}</p>
-                        <p className="text-xs text-gray-400 mt-1">
-                          {new Date(msg.created_at).toLocaleTimeString("ja-JP")}
+                    <div key={msg.id} className={`flex ${isPersona ? "justify-end" : "justify-start"}`}>
+                      <div className="max-w-md">
+                        <div className={`flex items-center gap-2 mb-1 ${isPersona ? "flex-row-reverse" : ""}`}>
+                          <Avatar src={avatarUrl} name={senderName} size={32} />
+                          <p className="text-xs font-bold">{senderName}</p>
+                        </div>
+                        <div
+                          className={`px-4 py-3 rounded-2xl text-sm ${
+                            isPersona
+                              ? "bg-pink-100 text-gray-800 rounded-br-sm ml-10"
+                              : "bg-orange-100 text-gray-800 rounded-bl-sm ml-10"
+                          }`}
+                        >
+                          <p className="whitespace-pre-wrap">{msg.content}</p>
+                        </div>
+                        <p className={`text-xs text-gray-400 mt-1 ${isPersona ? "text-right" : "ml-10"}`}>
+                          {new Date(msg.created_at).toLocaleTimeString("ja-JP", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
                         </p>
                       </div>
-                      {isPersona && <Avatar src={avatarUrl} name={senderName} size={28} />}
                     </div>
                   );
                 })}
