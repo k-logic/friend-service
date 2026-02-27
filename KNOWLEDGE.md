@@ -37,7 +37,7 @@ proxy-node-1/2    → Nginx プロキシ（スタッフIP隠匿）
 | 画面 | パス | 説明 |
 |------|------|------|
 | さがす | `/search` | ペルソナをグリッド（サークルアバター）でブラウズ・検索 |
-| ペルソナ詳細 | `/persona/[id]` | ペルソナのプロフィール表示、いいね・足跡記録、チャット開始 |
+| ペルソナ詳細 | `/persona/[id]` | ペルソナのプロフィール表示（登録日表示対応）、いいね・足跡記録、チャット開始 |
 | メッセージ一覧 | `/messages` | やり取り中のペルソナ一覧（activeセッションのみ表示）。アバター・名前・年齢・日時・最新ペルソナ返信プレビュー（15文字）表示 |
 | チャット | `/chat/[id]` | 吹き出し形式。ペルソナ側=ピンク/左寄せ、ユーザー側=ベージュ/右寄せ。送信者名（ユーザー名/ペルソナ名）表示 |
 | いいね | `/likes` | いいね一覧（ページロード時にサーバーから状態取得） |
@@ -96,7 +96,7 @@ proxy-node-1/2    → Nginx プロキシ（スタッフIP隠匿）
 | ログイン | `/login` | — | スタッフ/管理者専用認証 |
 | チャット | `/operator` | staff, admin | メイン業務画面 |
 | ペルソナ検索 | `/personas/search` | staff, admin | 全ペルソナの一覧・検索（閲覧のみ） |
-| ペルソナ管理 | `/personas` | admin のみ | ペルソナ一覧・作成・編集（staffはリダイレクト） |
+| ペルソナ管理 | `/personas` | admin のみ | ペルソナ一覧・モーダルで作成/編集（アバター画像アップロード対応）。staffはリダイレクト |
 | テンプレート | `/templates` | staff, admin | 定型文の登録・編集 |
 | お知らせ | `/notifications` | staff, admin | システム通知一覧・既読管理 |
 | ユーザ検索 | `/admin/users` | staff, admin | ユーザー検索（staffは閲覧のみ、adminはステータス変更可） |
@@ -117,7 +117,7 @@ proxy-node-1/2    → Nginx プロキシ（スタッフIP隠匿）
 |------|-----------|------|
 | スタッフログイン | staff, admin | スタッフ/管理者専用認証（userロールはログイン不可） |
 | ペルソナ検索 | staff, admin | 全ペルソナの一覧・検索（閲覧のみ） |
-| ペルソナ管理 | admin のみ | 作成・編集（名前、アバター、自己紹介、属性） |
+| ペルソナ管理 | admin のみ | モーダルで作成・編集（名前、性別、年齢、登録日、アバター画像、自己紹介、有効/無効） |
 | 複数チャット並行対応 | staff, admin | チャット一覧から選択して返信。staffは自分の担当ペルソナのセッションのみ、adminは全セッション |
 | テンプレート管理 | staff, admin | 定型文（%OPE01%等）の登録・編集・差し替え |
 | メディア添付 | staff, admin | 送信フォームからメディアを選択して送信 |
@@ -179,6 +179,7 @@ proxy-node-1/2    → Nginx プロキシ（スタッフIP隠匿）
 | ペルソナAPI（一覧・検索） | account | 全ペルソナ一覧取得 |
 | ペルソナAPI（作成） | admin | ペルソナ新規作成 |
 | ペルソナAPI（更新） | staff（自分の担当のみ）/ admin（全て） | ペルソナ編集 |
+| ペルソナAPI（アバター） | staff（自分の担当のみ）/ admin（全て） | `POST /personas/{id}/avatar` アバター画像アップロード（JPEG/PNG/WebP、5MB以下） |
 | ペルソナAPI（自分の担当） | staff | `/staff/mine` で自分が担当するペルソナ一覧 |
 | クレジットAPI | account | 残高照会・チャージ・履歴 |
 | クレジット付与API | admin | 管理者によるクレジット付与 |
@@ -202,7 +203,7 @@ proxy-node-1/2    → Nginx プロキシ（スタッフIP隠匿）
 
 - **users**: id, email, display_name, hashed_password, credit_balance, status(active/suspended), avatar_url, created_at, updated_at
 - **staff_members**: id, email, display_name, hashed_password, role(staff/admin), status(active/suspended), created_at, updated_at
-- **personas**: id, staff_id(FK→staff_members), name, age, avatar_url, bio, attributes(JSONB), is_active, created_at, updated_at
+- **personas**: id, staff_id(FK→staff_members), name, gender(male/female), age, avatar_url, bio, attributes(JSONB), registered_at(Date), is_active, created_at, updated_at
 - **sessions**: id, user_id(FK→users), persona_id(FK), status(active/closed), created_at, updated_at
   - PARTIAL UNIQUE INDEX: (user_id, persona_id) WHERE status='active' — 同一ユーザー×ペルソナのactiveセッションは1つのみ
 - **messages**: id(BIGINT), session_id(FK), sender_type(user/persona), sender_id, title, content, image_url, credit_cost, created_at
@@ -229,6 +230,7 @@ proxy-node-1/2    → Nginx プロキシ（スタッフIP隠匿）
 | `a1b2c3d4e5f6` | invitation_tokensテーブル追加 |
 | `b2c3d4e5f6a7` | invitation_tokensからpersona_idカラム削除 |
 | `d4e5f6a7b8c9` | accountsテーブルをusers + staff_membersに分離、FK参照カラムリネーム |
+| `e5f6a7b8c9d0` | personasにregistered_at(Date)カラム追加 |
 
 ---
 
@@ -271,6 +273,7 @@ proxy-node-1/2    → Nginx プロキシ（スタッフIP隠匿）
 13. accountsテーブル分離（users + staff_members）+ 認証エンドポイント分離 ✅
 14. チャットアバター表示 + スタッフ向けユーザー検索開放 ✅
 15. UX改善（ローディングスピナー・モバイルポイント購入導線・メッセージ一覧プレビュー） ✅
+16. ペルソナ管理強化（登録日フィールド・アバターアップロード・編集モーダル化） ✅
 
 ---
 

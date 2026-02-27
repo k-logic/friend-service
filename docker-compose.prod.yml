@@ -1,11 +1,11 @@
 # 本番用オーバーライド
-# 使い方: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+# 使い方: docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.prod up -d --build
 #
 # 事前に .env.prod を作成してください:
 #   SECRET_KEY=<ランダムな長い文字列>
 #   POSTGRES_PASSWORD=<強いパスワード>
-#   ALLOWED_ORIGINS=https://app.example.com,https://staff.example.com
-#   FRONTEND_API_URL=https://api.example.com
+#   ALLOWED_ORIGINS=https://app.friend.kskshome.xyz,https://staff.friend.kskshome.xyz
+#   FRONTEND_API_URL=https://api.friend.kskshome.xyz
 
 services:
   api:
@@ -40,15 +40,21 @@ services:
       - "8081:80"
 
   frontend-user:
+    build:
+      context: ./frontend-user
+      dockerfile: Dockerfile.prod
+      args:
+        - NEXT_PUBLIC_API_URL=${FRONTEND_API_URL}
     ports:
       - "3000:3000"
-    environment:
-      - NEXT_PUBLIC_API_URL=${FRONTEND_API_URL}
     volumes: []
 
   frontend-staff:
+    build:
+      context: ./frontend-staff
+      dockerfile: Dockerfile.prod
+      args:
+        - NEXT_PUBLIC_API_URL=${FRONTEND_API_URL}
     ports:
       - "3001:3001"
-    environment:
-      - NEXT_PUBLIC_API_URL=${FRONTEND_API_URL}
     volumes: []
