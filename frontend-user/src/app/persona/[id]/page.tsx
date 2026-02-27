@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, toFullUrl } from "@/lib/api";
 import AppLayout from "@/components/AppLayout";
 
 type Persona = {
@@ -70,7 +70,7 @@ export default function PersonaDetailPage() {
         <div className="bg-white rounded-xl shadow p-6 md:p-8 text-center">
           <div className="w-24 h-24 md:w-32 md:h-32 mx-auto rounded-full bg-gray-200 overflow-hidden border-4 border-pink-200 mb-4">
             {persona.avatar_url ? (
-              <img src={persona.avatar_url} alt={persona.name} className="w-full h-full object-cover" />
+              <img src={toFullUrl(persona.avatar_url)!} alt={persona.name} className="w-full h-full object-cover" />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-4xl text-gray-400">
                 {persona.name[0]}

@@ -1,7 +1,9 @@
 import os
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.routers import (
     auth,
@@ -64,6 +66,12 @@ app.include_router(admin_paid_contents.router)
 app.include_router(admin_mail.router)
 app.include_router(admin_line_bot.router)
 app.include_router(admin_age_verification.router)
+
+
+# 静的ファイル配信（アバター画像等）
+uploads_dir = Path("/app/uploads")
+uploads_dir.mkdir(parents=True, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=str(uploads_dir)), name="uploads")
 
 
 @app.get("/health")

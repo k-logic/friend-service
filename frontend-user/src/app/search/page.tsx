@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, toFullUrl } from "@/lib/api";
 import AppLayout from "@/components/AppLayout";
 import Link from "next/link";
 
@@ -30,7 +30,7 @@ export default function SearchPage() {
             <Link key={p.id} href={`/persona/${p.id}`} className="text-center group">
               <div className="w-20 h-20 sm:w-24 sm:h-24 mx-auto rounded-full bg-gray-200 overflow-hidden border-2 border-pink-200 group-hover:border-pink-400 transition-colors">
                 {p.avatar_url ? (
-                  <img src={p.avatar_url} alt={p.name} className="w-full h-full object-cover" />
+                  <img src={toFullUrl(p.avatar_url)!} alt={p.name} className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-3xl text-gray-400">
                     {p.name[0]}

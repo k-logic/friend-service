@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Integer, DateTime, ForeignKey, Index, func
+from sqlalchemy import Integer, DateTime, ForeignKey, Index, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -16,4 +16,5 @@ class Footprint(Base):
 
     __table_args__ = (
         Index("ix_footprints_persona_created", "persona_id", "created_at"),
+        UniqueConstraint("visitor_account_id", "persona_id", name="uq_footprints_visitor_persona"),
     )

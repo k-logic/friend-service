@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth";
-import { clearToken } from "@/lib/api";
+import { clearToken, toFullUrl } from "@/lib/api";
 
 const NAV_ITEMS = [
   { href: "/search", label: "さがす", icon: "🔍" },
@@ -38,7 +38,7 @@ export default function Sidebar() {
         <div className="px-4 pb-4 text-center border-b border-gray-200">
           <div className="w-20 h-20 mx-auto rounded-full bg-gray-200 overflow-hidden mb-2">
             {account.avatar_url ? (
-              <img src={account.avatar_url} alt="" className="w-full h-full object-cover" />
+              <img src={toFullUrl(account.avatar_url)!} alt="" className="w-full h-full object-cover" />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-2xl text-gray-400">
                 {account.display_name[0]}

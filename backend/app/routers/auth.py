@@ -1,4 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+import os
+import time
+from pathlib import Path
+
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -7,6 +11,10 @@ from app.dependencies import get_current_account
 from app.models.account import Account
 from app.schemas.auth import AccountResponse, LoginRequest, RegisterRequest, TokenResponse
 from app.services.auth_service import authenticate, create_access_token, hash_password
+
+UPLOAD_DIR = Path("/app/uploads/avatars")
+ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp"}
+MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
 
 router = APIRouter(prefix="/api/v1/auth", tags=["認証"])
 
@@ -42,4 +50,38 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
 
 @router.get("/me", response_model=AccountResponse)
 async def get_me(account: Account = Depends(get_current_account)):
+    return account
+
+
+@router.post("/avatar", response_model=AccountResponse)
+async def upload_avatar(
+    file: UploadFile,
+    account: Account = Depends(get_current_account),
+    db: AsyncSession = Depends(get_db),
+):
+    if file.content_type not in ALLOWED_TYPES:
+        raise HTTPException(status_code=400, detail="JPEG, PNG, WebP のみアップロード可能です")
+
+    data = await file.read()
+    if len(data) > MAX_FILE_SIZE:
+        raise HTTPException(status_code=400, detail="ファイルサイズは5MB以下にしてください")
+
+    ext = file.filename.rsplit(".", 1)[-1].lower() if file.filename and "." in file.filename else "jpg"
+    filename = f"avatar_{account.id}_{int(time.time())}.{ext}"
+
+    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+    # 旧アバターファイルを削除
+    if account.avatar_url:
+        old_path = Path("/app") / account.avatar_url.lstrip("/")
+        if old_path.exists():
+            old_path.unlink()
+
+    filepath = UPLOAD_DIR / filename
+    with open(filepath, "wb") as f:
+        f.write(data)
+
+    account.avatar_url = f"/uploads/avatars/{filename}"
+    await db.commit()
+    await db.refresh(account)
     return account

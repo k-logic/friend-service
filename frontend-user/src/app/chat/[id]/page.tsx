@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, toFullUrl } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import AppLayout from "@/components/AppLayout";
 
@@ -102,25 +102,43 @@ export default function ChatPage() {
         <div className="flex-1 overflow-y-auto p-3 md:p-6 space-y-3 md:space-y-4">
           {messages.map((msg) => {
             const isUser = msg.sender_type === "user";
+            const avatarUrl = isUser ? account?.avatar_url : persona?.avatar_url;
+            const avatarInitial = isUser
+              ? account?.display_name?.[0]
+              : persona?.name?.[0];
+            const avatar = (
+              <div className="w-8 h-8 rounded-full bg-gray-200 overflow-hidden flex-shrink-0">
+                {avatarUrl ? (
+                  <img src={toFullUrl(avatarUrl)!} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-xs text-gray-400">
+                    {avatarInitial || "?"}
+                  </div>
+                )}
+              </div>
+            );
             return (
               <div key={msg.id} className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
-                <div className={`max-w-[75%] md:max-w-md ${isUser ? "order-1" : ""}`}>
-                  <p className={`text-xs font-bold mb-1 ${isUser ? "text-right" : ""}`}>
-                    {isUser ? account?.display_name || "あなた" : persona?.name || "..."}
-                  </p>
+                <div className={`max-w-[70%] md:max-w-md`}>
+                  <div className={`flex items-center gap-2 mb-1 ${isUser ? "flex-row-reverse" : ""}`}>
+                    {avatar}
+                    <p className="text-xs font-bold">
+                      {isUser ? account?.display_name || "あなた" : persona?.name || "..."}
+                    </p>
+                  </div>
                   <div
                     className={`px-4 py-3 rounded-2xl text-sm ${
                       isUser
-                        ? "bg-orange-100 text-gray-800 rounded-br-sm"
-                        : "bg-pink-100 text-gray-800 rounded-bl-sm"
+                        ? "bg-orange-100 text-gray-800 rounded-br-sm ml-10"
+                        : "bg-pink-100 text-gray-800 rounded-bl-sm ml-10"
                     }`}
                   >
                     {msg.image_url && (
-                      <img src={msg.image_url} alt="" className="max-w-full md:max-w-xs rounded mb-2" />
+                      <img src={toFullUrl(msg.image_url)!} alt="" className="max-w-full md:max-w-xs rounded mb-2" />
                     )}
                     <p className="whitespace-pre-wrap">{msg.content}</p>
                   </div>
-                  <p className={`text-xs text-gray-400 mt-1 ${isUser ? "text-right" : ""}`}>
+                  <p className={`text-xs text-gray-400 mt-1 ${isUser ? "text-right" : "ml-10"}`}>
                     {new Date(msg.created_at).toLocaleTimeString("ja-JP", {
                       hour: "2-digit",
                       minute: "2-digit",

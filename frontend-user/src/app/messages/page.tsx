@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, toFullUrl } from "@/lib/api";
 import AppLayout from "@/components/AppLayout";
 import Link from "next/link";
 
@@ -59,7 +59,7 @@ export default function MessagesPage() {
               >
                 <div className="w-14 h-14 rounded-full bg-gray-200 overflow-hidden flex-shrink-0">
                   {persona?.avatar_url ? (
-                    <img src={persona.avatar_url} alt="" className="w-full h-full object-cover" />
+                    <img src={toFullUrl(persona.avatar_url)!} alt="" className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-xl text-gray-400">
                       {persona?.name?.[0] || "?"}
