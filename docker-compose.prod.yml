@@ -1,0 +1,55 @@
+# 本番用オーバーライド
+# 使い方: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# 事前に .env.prod を作成してください:
+#   SECRET_KEY=<ランダムな長い文字列>
+#   POSTGRES_PASSWORD=<強いパスワード>
+#   API_DOMAIN=api.example.com
+#   APP_DOMAIN=app.example.com
+#   STAFF_DOMAIN=staff.example.com
+
+services:
+  api:
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://friend:${POSTGRES_PASSWORD}@db:5432/friend
+      - SECRET_KEY=${SECRET_KEY}
+      - ALLOWED_ORIGINS=https://${APP_DOMAIN},https://${STAFF_DOMAIN}
+    volumes:
+      - upload_data:/app/uploads
+      # 開発用のソースマウントを無効化（イメージ内のコードを使う）
+
+  db:
+    ports:
+      - "127.0.0.1:5432:5432"
+    environment:
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+
+  redis:
+    ports:
+      - "127.0.0.1:6379:6379"
+
+  # プロキシサーバーからアクセスできるよう 0.0.0.0 でバインド
+  # ファイアウォールでプロキシサーバーのIPからのみ許可すること
+  proxy-node-1:
+    ports:
+      - "8080:80"
+
+  proxy-node-2:
+    ports:
+      - "8081:80"
+
+  frontend-user:
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=https://${API_DOMAIN}
+    volumes: []
+
+  frontend-staff:
+    ports:
+      - "3001:3001"
+    environment:
+      - NEXT_PUBLIC_API_URL=https://${API_DOMAIN}
+    volumes: []

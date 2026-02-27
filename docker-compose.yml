@@ -1,0 +1,118 @@
+services:
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://friend:friend@db:5432/friend
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=dev-secret-key-change-in-production
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./backend/app:/app/app
+      - upload_data:/app/uploads
+    networks:
+      - internal-net
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=friend
+      - POSTGRES_PASSWORD=friend
+      - POSTGRES_DB=friend
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - internal-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U friend"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - internal-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  proxy-node-1:
+    build:
+      context: ./proxy
+      dockerfile: Dockerfile
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
+    networks:
+      - proxy-net
+      - internal-net
+    restart: unless-stopped
+
+  proxy-node-2:
+    build:
+      context: ./proxy
+      dockerfile: Dockerfile
+    ports:
+      - "8081:80"
+    depends_on:
+      - api
+    networks:
+      - proxy-net
+      - internal-net
+    restart: unless-stopped
+
+  frontend-user:
+    build:
+      context: ./frontend-user
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8080
+    volumes:
+      - ./frontend-user/src:/app/src
+    restart: unless-stopped
+
+  frontend-staff:
+    build:
+      context: ./frontend-staff
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8080
+    volumes:
+      - ./frontend-staff/src:/app/src
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+  upload_data:
+
+networks:
+  proxy-net:
+    driver: bridge
+  internal-net:
+    driver: bridge
+    internal: true
