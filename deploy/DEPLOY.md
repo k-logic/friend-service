@@ -113,23 +113,23 @@ sudo ln -s /etc/nginx/sites-available/friend /etc/nginx/sites-enabled/
 
 ### 6. SSL 証明書の取得（Let's Encrypt）
 
-初回は SSL 証明書がまだないので段階的にセットアップ:
-
 ```bash
-# 1. 各設定ファイルの listen 443 ブロック全体を一時的にコメントアウト
-# 2. Nginx 再読み込み
-sudo nginx -t && sudo systemctl reload nginx
+# certbot インストール（未インストールの場合）
+sudo apt install certbot python3-certbot-nginx
 
-# 3. certbot で証明書取得
-sudo certbot --nginx -d app.yourdomain.com -d staff.yourdomain.com -d api.yourdomain.com
+# 証明書取得（Nginx設定は自動で更新される）
+sudo certbot certonly --nginx -d app.yourdomain.com -d staff.yourdomain.com -d api.yourdomain.com
 
-# 4. コメントアウトした 443 ブロックを元に戻す
-# 5. Nginx 再読み込み
+# Nginx 再読み込み
 sudo nginx -t && sudo systemctl reload nginx
 
 # 自動更新の確認
 sudo certbot renew --dry-run
 ```
+
+> **注意**: `certbot --nginx`（`certonly` なし）を使うと Nginx 設定が自動変更されて
+> リダイレクトループが発生する場合があります。`certonly` で証明書だけ取得し、
+> Nginx 設定は手動で管理することを推奨します。
 
 ---
 
