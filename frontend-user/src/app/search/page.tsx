@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { apiFetch, toFullUrl } from "@/lib/api";
 import AppLayout from "@/components/AppLayout";
+import LoadingSpinner from "@/components/LoadingSpinner";
 import Link from "next/link";
 
 type Persona = {
@@ -16,15 +17,20 @@ type Persona = {
 
 export default function SearchPage() {
   const [personas, setPersonas] = useState<Persona[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    apiFetch<Persona[]>("/api/v1/personas").then(setPersonas).catch(() => {});
+    apiFetch<Persona[]>("/api/v1/personas")
+      .then(setPersonas)
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, []);
 
   return (
     <AppLayout>
       <div className="p-4 md:p-8">
         <h2 className="text-xl font-bold mb-6">さがす</h2>
+        {loading ? <LoadingSpinner /> : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
           {personas.map((p) => (
             <Link key={p.id} href={`/persona/${p.id}`} className="text-center group">
@@ -51,6 +57,7 @@ export default function SearchPage() {
             </p>
           )}
         </div>
+        )}
       </div>
     </AppLayout>
   );

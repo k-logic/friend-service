@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { apiFetch, toFullUrl } from "@/lib/api";
 import AppLayout from "@/components/AppLayout";
+import LoadingSpinner from "@/components/LoadingSpinner";
 import Link from "next/link";
 
 type Footprint = { id: number; persona_id: number; created_at: string };
@@ -11,21 +12,25 @@ type Persona = { id: number; name: string; age: number | null; avatar_url: strin
 export default function FootprintsPage() {
   const [footprints, setFootprints] = useState<Footprint[]>([]);
   const [personas, setPersonas] = useState<Record<number, Persona>>({});
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
-      const data = await apiFetch<Footprint[]>("/api/v1/footprints/mine");
-      setFootprints(data);
-      const map: Record<number, Persona> = {};
-      const uniqueIds = [...new Set(data.map((f) => f.persona_id))];
-      await Promise.all(
-        uniqueIds.map(async (pid) => {
-          try {
-            map[pid] = await apiFetch<Persona>(`/api/v1/personas/${pid}`);
-          } catch {}
-        })
-      );
-      setPersonas(map);
+      try {
+        const data = await apiFetch<Footprint[]>("/api/v1/footprints/mine");
+        setFootprints(data);
+        const map: Record<number, Persona> = {};
+        const uniqueIds = [...new Set(data.map((f) => f.persona_id))];
+        await Promise.all(
+          uniqueIds.map(async (pid) => {
+            try {
+              map[pid] = await apiFetch<Persona>(`/api/v1/personas/${pid}`);
+            } catch {}
+          })
+        );
+        setPersonas(map);
+      } catch {}
+      setLoading(false);
     })();
   }, []);
 
@@ -33,6 +38,7 @@ export default function FootprintsPage() {
     <AppLayout>
       <div className="p-4 md:p-8">
         <h2 className="text-xl font-bold mb-6">足跡</h2>
+        {loading ? <LoadingSpinner /> : (
         <div className="space-y-3">
           {footprints.map((f) => {
             const p = personas[f.persona_id];
@@ -64,6 +70,7 @@ export default function FootprintsPage() {
             <p className="text-center text-gray-400 py-12">まだ閲覧履歴はありません</p>
           )}
         </div>
+        )}
       </div>
     </AppLayout>
   );

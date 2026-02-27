@@ -18,8 +18,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-gray-500">読み込み中...</p>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
+        <div className="animate-spin h-10 w-10 border-4 border-teal-500 border-t-transparent rounded-full" />
+        <p className="mt-4 text-sm text-gray-400">読み込み中...</p>
       </div>
     );
   }

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { apiFetch, toFullUrl } from "@/lib/api";
 import AppLayout from "@/components/AppLayout";
+import LoadingSpinner from "@/components/LoadingSpinner";
 import Link from "next/link";
 
 type Like = { id: number; persona_id: number; created_at: string };
@@ -11,20 +12,24 @@ type Persona = { id: number; name: string; age: number | null; avatar_url: strin
 export default function LikesPage() {
   const [likes, setLikes] = useState<Like[]>([]);
   const [personas, setPersonas] = useState<Record<number, Persona>>({});
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
-      const data = await apiFetch<Like[]>("/api/v1/likes");
-      setLikes(data);
-      const map: Record<number, Persona> = {};
-      await Promise.all(
-        data.map(async (l) => {
-          try {
-            map[l.persona_id] = await apiFetch<Persona>(`/api/v1/personas/${l.persona_id}`);
-          } catch {}
-        })
-      );
-      setPersonas(map);
+      try {
+        const data = await apiFetch<Like[]>("/api/v1/likes");
+        setLikes(data);
+        const map: Record<number, Persona> = {};
+        await Promise.all(
+          data.map(async (l) => {
+            try {
+              map[l.persona_id] = await apiFetch<Persona>(`/api/v1/personas/${l.persona_id}`);
+            } catch {}
+          })
+        );
+        setPersonas(map);
+      } catch {}
+      setLoading(false);
     })();
   }, []);
 
@@ -32,6 +37,7 @@ export default function LikesPage() {
     <AppLayout>
       <div className="p-4 md:p-8">
         <h2 className="text-xl font-bold mb-6">いいね</h2>
+        {loading ? <LoadingSpinner /> : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 md:gap-6">
           {likes.map((l) => {
             const p = personas[l.persona_id];
@@ -54,6 +60,7 @@ export default function LikesPage() {
             <p className="col-span-full text-center text-gray-400 py-12">まだいいねしていません</p>
           )}
         </div>
+        )}
       </div>
     </AppLayout>
   );

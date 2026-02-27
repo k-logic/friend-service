@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { apiFetch, toFullUrl } from "@/lib/api";
 import AppLayout from "@/components/AppLayout";
+import LoadingSpinner from "@/components/LoadingSpinner";
 import Link from "next/link";
 
 type Session = {
@@ -23,24 +24,28 @@ type Persona = {
 export default function MessagesPage() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [personas, setPersonas] = useState<Record<number, Persona>>({});
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
-      const allSessions = await apiFetch<Session[]>("/api/v1/sessions");
-      const sessions = allSessions.filter((s) => s.status === "active");
-      setSessions(sessions);
+      try {
+        const allSessions = await apiFetch<Session[]>("/api/v1/sessions");
+        const sessions = allSessions.filter((s) => s.status === "active");
+        setSessions(sessions);
 
-      const personaMap: Record<number, Persona> = {};
-      const uniqueIds = [...new Set(sessions.map((s) => s.persona_id))];
-      await Promise.all(
-        uniqueIds.map(async (pid) => {
-          try {
-            const p = await apiFetch<Persona>(`/api/v1/personas/${pid}`);
-            personaMap[pid] = p;
-          } catch {}
-        })
-      );
-      setPersonas(personaMap);
+        const personaMap: Record<number, Persona> = {};
+        const uniqueIds = [...new Set(sessions.map((s) => s.persona_id))];
+        await Promise.all(
+          uniqueIds.map(async (pid) => {
+            try {
+              const p = await apiFetch<Persona>(`/api/v1/personas/${pid}`);
+              personaMap[pid] = p;
+            } catch {}
+          })
+        );
+        setPersonas(personaMap);
+      } catch {}
+      setLoading(false);
     })();
   }, []);
 
@@ -48,6 +53,7 @@ export default function MessagesPage() {
     <AppLayout>
       <div className="p-4 md:p-8">
         <h2 className="text-xl font-bold mb-6">メッセージ</h2>
+        {loading ? <LoadingSpinner /> : (
         <div className="space-y-3">
           {sessions.map((s) => {
             const persona = personas[s.persona_id];
@@ -87,6 +93,7 @@ export default function MessagesPage() {
             <p className="text-center text-gray-400 py-12">メッセージはまだありません</p>
           )}
         </div>
+        )}
       </div>
     </AppLayout>
   );

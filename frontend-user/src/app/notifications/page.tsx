@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import AppLayout from "@/components/AppLayout";
+import LoadingSpinner from "@/components/LoadingSpinner";
 
 type Notification = {
   id: number;
@@ -15,9 +16,13 @@ type Notification = {
 
 export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    apiFetch<Notification[]>("/api/v1/notifications").then(setNotifications).catch(() => {});
+    apiFetch<Notification[]>("/api/v1/notifications")
+      .then(setNotifications)
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, []);
 
   const markRead = async (id: number) => {
@@ -39,6 +44,7 @@ export default function NotificationsPage() {
             すべて既読にする
           </button>
         </div>
+        {loading ? <LoadingSpinner /> : (
         <div className="space-y-3">
           {notifications.map((n) => (
             <div
@@ -63,6 +69,7 @@ export default function NotificationsPage() {
             <p className="text-center text-gray-400 py-12">お知らせはありません</p>
           )}
         </div>
+        )}
       </div>
     </AppLayout>
   );
