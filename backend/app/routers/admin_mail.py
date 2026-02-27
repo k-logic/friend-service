@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies import get_current_admin
-from app.models.account import Account
+from app.models.staff_member import StaffMember
 from app.models.mail_campaign import MailCampaign, CampaignType, CampaignStatus, TriggerMailSetting
 from app.schemas.admin import (
     MailCampaignCreateRequest,
@@ -21,7 +21,7 @@ async def list_campaigns(
     campaign_type: str | None = Query(None, alias="type"),
     offset: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
-    admin: Account = Depends(get_current_admin),
+    admin: StaffMember = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
     stmt = select(MailCampaign)
@@ -35,7 +35,7 @@ async def list_campaigns(
 @router.post("/campaigns", response_model=MailCampaignResponse, status_code=status.HTTP_201_CREATED)
 async def create_campaign(
     body: MailCampaignCreateRequest,
-    admin: Account = Depends(get_current_admin),
+    admin: StaffMember = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
     campaign = MailCampaign(
@@ -56,7 +56,7 @@ async def create_campaign(
 async def update_campaign_status(
     campaign_id: int,
     new_status: str = Query(..., alias="status"),
-    admin: Account = Depends(get_current_admin),
+    admin: StaffMember = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(select(MailCampaign).where(MailCampaign.id == campaign_id))
@@ -73,7 +73,7 @@ async def update_campaign_status(
 # --- トリガーメール ---
 @router.get("/triggers", response_model=list[TriggerMailSettingResponse])
 async def list_triggers(
-    admin: Account = Depends(get_current_admin),
+    admin: StaffMember = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
     stmt = select(TriggerMailSetting).order_by(TriggerMailSetting.created_at.desc())
@@ -84,7 +84,7 @@ async def list_triggers(
 @router.post("/triggers", response_model=TriggerMailSettingResponse, status_code=status.HTTP_201_CREATED)
 async def create_trigger(
     body: TriggerMailSettingCreateRequest,
-    admin: Account = Depends(get_current_admin),
+    admin: StaffMember = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
     trigger = TriggerMailSetting(
@@ -102,7 +102,7 @@ async def create_trigger(
 @router.patch("/triggers/{trigger_id}/toggle", response_model=TriggerMailSettingResponse)
 async def toggle_trigger(
     trigger_id: int,
-    admin: Account = Depends(get_current_admin),
+    admin: StaffMember = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(select(TriggerMailSetting).where(TriggerMailSetting.id == trigger_id))

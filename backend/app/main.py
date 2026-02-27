@@ -7,6 +7,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.routers import (
     auth,
+    staff_auth,
     messages,
     sessions,
     credits,
@@ -47,6 +48,7 @@ else:
 
 # コア機能
 app.include_router(auth.router)
+app.include_router(staff_auth.router)
 app.include_router(messages.router)
 app.include_router(sessions.router)
 app.include_router(credits.router)

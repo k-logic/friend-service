@@ -5,7 +5,7 @@ from pydantic import BaseModel
 
 class NotificationResponse(BaseModel):
     id: int
-    account_id: int
+    user_id: int
     type: str
     title: str
     body: str | None

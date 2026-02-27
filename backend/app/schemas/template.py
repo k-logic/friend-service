@@ -15,7 +15,7 @@ class TemplateUpdateRequest(BaseModel):
 
 class TemplateResponse(BaseModel):
     id: int
-    staff_account_id: int
+    staff_id: int
     label: str
     content: str
     created_at: datetime

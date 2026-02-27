@@ -1,4 +1,5 @@
-from app.models.account import Account
+from app.models.user import User
+from app.models.staff_member import StaffMember
 from app.models.persona import Persona
 from app.models.session import Session
 from app.models.message import Message
@@ -14,7 +15,8 @@ from app.models.age_verification import AgeVerification
 from app.models.invitation import InvitationToken
 
 __all__ = [
-    "Account",
+    "User",
+    "StaffMember",
     "Persona",
     "Session",
     "Message",

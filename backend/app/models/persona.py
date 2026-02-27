@@ -17,7 +17,7 @@ class Persona(Base):
     __tablename__ = "personas"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    staff_account_id: Mapped[int] = mapped_column(Integer, ForeignKey("accounts.id"), nullable=False, index=True)
+    staff_id: Mapped[int] = mapped_column(Integer, ForeignKey("staff_members.id"), nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     gender: Mapped[Gender | None] = mapped_column(Enum(Gender), nullable=True)
     age: Mapped[int | None] = mapped_column(Integer, nullable=True)

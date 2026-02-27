@@ -9,7 +9,7 @@ class LikeRequest(BaseModel):
 
 class LikeResponse(BaseModel):
     id: int
-    user_account_id: int
+    user_id: int
     persona_id: int
     created_at: datetime
 

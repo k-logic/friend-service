@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies import get_current_admin
-from app.models.account import Account
+from app.models.staff_member import StaffMember
 from app.models.line_bot_account import LineBotAccount
 from app.schemas.admin import LineBotAccountCreateRequest, LineBotAccountResponse, LineBotAccountUpdateRequest
 
@@ -13,7 +13,7 @@ router = APIRouter(prefix="/api/v1/admin/line-bot", tags=["管理: LINE Bot"])
 
 @router.get("", response_model=list[LineBotAccountResponse])
 async def list_line_bots(
-    admin: Account = Depends(get_current_admin),
+    admin: StaffMember = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
     stmt = select(LineBotAccount).order_by(LineBotAccount.id)
@@ -24,7 +24,7 @@ async def list_line_bots(
 @router.post("", response_model=LineBotAccountResponse, status_code=status.HTTP_201_CREATED)
 async def create_line_bot(
     body: LineBotAccountCreateRequest,
-    admin: Account = Depends(get_current_admin),
+    admin: StaffMember = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
     existing = await db.execute(
@@ -49,7 +49,7 @@ async def create_line_bot(
 async def update_line_bot(
     bot_id: int,
     body: LineBotAccountUpdateRequest,
-    admin: Account = Depends(get_current_admin),
+    admin: StaffMember = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(select(LineBotAccount).where(LineBotAccount.id == bot_id))
@@ -69,7 +69,7 @@ async def update_line_bot(
 @router.patch("/{bot_id}/toggle", response_model=LineBotAccountResponse)
 async def toggle_line_bot(
     bot_id: int,
-    admin: Account = Depends(get_current_admin),
+    admin: StaffMember = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(select(LineBotAccount).where(LineBotAccount.id == bot_id))

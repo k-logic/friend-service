@@ -16,16 +16,12 @@ export default function LoginPage() {
     e.preventDefault();
     setError("");
     try {
-      const data = await apiFetch<{ access_token: string }>("/api/v1/auth/login", {
+      const data = await apiFetch<{ access_token: string }>("/api/v1/staff/auth/login", {
         method: "POST",
         body: JSON.stringify({ email, password }),
       });
       setToken(data.access_token);
-      const account = await apiFetch<any>("/api/v1/auth/me");
-      if (account.role !== "staff" && account.role !== "admin") {
-        setError("スタッフまたは管理者アカウントでログインしてください");
-        return;
-      }
+      const account = await apiFetch<any>("/api/v1/staff/auth/me");
       setAccount(account);
       router.push("/operator");
     } catch (err: any) {

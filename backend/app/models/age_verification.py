@@ -17,8 +17,8 @@ class AgeVerification(Base):
     __tablename__ = "age_verifications"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    account_id: Mapped[int] = mapped_column(Integer, ForeignKey("accounts.id"), nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     status: Mapped[VerificationStatus] = mapped_column(Enum(VerificationStatus), default=VerificationStatus.pending, nullable=False)
     submitted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    reviewer_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("accounts.id"), nullable=True)
+    reviewer_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("staff_members.id"), nullable=True)

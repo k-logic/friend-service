@@ -11,30 +11,31 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import async_session
-from app.models.account import Account, AccountRole, AccountStatus
+from app.models.user import User, UserStatus
+from app.models.staff_member import StaffMember, StaffRole, StaffStatus
 from app.models.persona import Persona, Gender
 from app.services.auth_service import hash_password
 
-SEED_ACCOUNTS = [
+SEED_STAFF = [
     {
         "email": "admin@example.com",
         "display_name": "管理者",
         "password": "admin1234",
-        "role": AccountRole.admin,
-        "credit_balance": 0,
+        "role": StaffRole.admin,
     },
     {
         "email": "staff@example.com",
         "display_name": "スタッフA",
         "password": "staff1234",
-        "role": AccountRole.staff,
-        "credit_balance": 0,
+        "role": StaffRole.staff,
     },
+]
+
+SEED_USERS = [
     {
         "email": "user@example.com",
         "display_name": "テストユーザー",
         "password": "user1234",
-        "role": AccountRole.user,
         "credit_balance": 1000,
     },
 ]
@@ -58,39 +59,57 @@ SEED_PERSONAS = [
 
 
 async def seed(db: AsyncSession) -> None:
-    # --- アカウント ---
-    created_accounts: dict[str, Account] = {}
-    for data in SEED_ACCOUNTS:
-        result = await db.execute(select(Account).where(Account.email == data["email"]))
+    # --- スタッフ ---
+    created_staff: dict[str, StaffMember] = {}
+    for data in SEED_STAFF:
+        result = await db.execute(select(StaffMember).where(StaffMember.email == data["email"]))
         existing = result.scalar_one_or_none()
         if existing:
             print(f"  スキップ (既存): {data['email']} (id={existing.id})")
-            created_accounts[data["email"]] = existing
+            created_staff[data["email"]] = existing
             continue
 
-        account = Account(
+        staff = StaffMember(
             email=data["email"],
             display_name=data["display_name"],
             hashed_password=hash_password(data["password"]),
             role=data["role"],
-            status=AccountStatus.active,
-            credit_balance=data["credit_balance"],
+            status=StaffStatus.active,
         )
-        db.add(account)
+        db.add(staff)
         await db.flush()
-        created_accounts[data["email"]] = account
-        print(f"  作成: {data['email']} (id={account.id}, role={data['role'].value})")
+        created_staff[data["email"]] = staff
+        print(f"  作成: {data['email']} (id={staff.id}, role={data['role'].value})")
+
+    # --- ユーザー ---
+    for data in SEED_USERS:
+        result = await db.execute(select(User).where(User.email == data["email"]))
+        existing = result.scalar_one_or_none()
+        if existing:
+            print(f"  スキップ (既存): {data['email']} (id={existing.id})")
+            continue
+
+        user = User(
+            email=data["email"],
+            display_name=data["display_name"],
+            hashed_password=hash_password(data["password"]),
+            status=UserStatus.active,
+            credit_balance=data.get("credit_balance", 0),
+        )
+        db.add(user)
+        await db.flush()
+        print(f"  作成: {data['email']} (id={user.id})")
 
     # --- ペルソナ ---
     for data in SEED_PERSONAS:
-        staff = created_accounts.get(data["staff_email"])
+        staff = created_staff.get(data["staff_email"])
         if not staff:
             print(f"  スキップ (スタッフ不在): ペルソナ {data['name']}")
             continue
 
         result = await db.execute(
             select(Persona).where(
-                Persona.staff_account_id == staff.id,
+                Persona.staff_id == staff.id,
                 Persona.name == data["name"],
             )
         )
@@ -99,7 +118,7 @@ async def seed(db: AsyncSession) -> None:
             continue
 
         persona = Persona(
-            staff_account_id=staff.id,
+            staff_id=staff.id,
             name=data["name"],
             gender=data.get("gender"),
             age=data.get("age"),
@@ -120,8 +139,12 @@ async def main() -> None:
     print("完了!")
     print()
     print("ログイン情報:")
-    for data in SEED_ACCOUNTS:
-        print(f"  {data['role'].value:6s} | {data['email']} / {data['password']}")
+    print("  [スタッフ]")
+    for data in SEED_STAFF:
+        print(f"    {data['role'].value:6s} | {data['email']} / {data['password']}")
+    print("  [ユーザー]")
+    for data in SEED_USERS:
+        print(f"    user   | {data['email']} / {data['password']}")
 
 
 if __name__ == "__main__":

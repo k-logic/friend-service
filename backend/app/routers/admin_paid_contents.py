@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies import get_current_admin
-from app.models.account import Account
+from app.models.staff_member import StaffMember
 from app.models.paid_content import PaidContent
 from app.schemas.admin import PaidContentCreateRequest, PaidContentResponse
 
@@ -13,7 +13,7 @@ router = APIRouter(prefix="/api/v1/admin/paid-contents", tags=["管理: 有料�
 
 @router.get("", response_model=list[PaidContentResponse])
 async def list_paid_contents(
-    admin: Account = Depends(get_current_admin),
+    admin: StaffMember = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
     stmt = select(PaidContent).order_by(PaidContent.created_at.desc())
@@ -24,7 +24,7 @@ async def list_paid_contents(
 @router.post("", response_model=PaidContentResponse, status_code=status.HTTP_201_CREATED)
 async def create_paid_content(
     body: PaidContentCreateRequest,
-    admin: Account = Depends(get_current_admin),
+    admin: StaffMember = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
     content = PaidContent(
@@ -39,7 +39,7 @@ async def create_paid_content(
 @router.patch("/{content_id}/toggle", response_model=PaidContentResponse)
 async def toggle_paid_content(
     content_id: int,
-    admin: Account = Depends(get_current_admin),
+    admin: StaffMember = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(select(PaidContent).where(PaidContent.id == content_id))

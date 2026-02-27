@@ -5,8 +5,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.dependencies import get_current_account, get_current_admin
-from app.models.account import Account
+from app.dependencies import get_current_user, get_current_admin
+from app.models.user import User
+from app.models.staff_member import StaffMember
 from app.models.inquiry import Inquiry, InquiryStatus
 from app.schemas.admin import InquiryCreateRequest, InquiryReplyRequest, InquiryResponse
 from app.services.account_service import get_display_name_map
@@ -18,10 +19,10 @@ router = APIRouter(prefix="/api/v1/inquiries", tags=["問い合わせ"])
 @router.post("", response_model=InquiryResponse, status_code=status.HTTP_201_CREATED)
 async def create_inquiry(
     body: InquiryCreateRequest,
-    account: Account = Depends(get_current_account),
+    user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    inquiry = Inquiry(account_id=account.id, subject=body.subject, body=body.body)
+    inquiry = Inquiry(user_id=user.id, subject=body.subject, body=body.body)
     db.add(inquiry)
     await db.commit()
     await db.refresh(inquiry)
@@ -30,10 +31,10 @@ async def create_inquiry(
 
 @router.get("/mine", response_model=list[InquiryResponse])
 async def list_my_inquiries(
-    account: Account = Depends(get_current_account),
+    user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    stmt = select(Inquiry).where(Inquiry.account_id == account.id).order_by(Inquiry.created_at.desc())
+    stmt = select(Inquiry).where(Inquiry.user_id == user.id).order_by(Inquiry.created_at.desc())
     result = await db.execute(stmt)
     return list(result.scalars().all())
 
@@ -44,7 +45,7 @@ async def list_all_inquiries(
     inquiry_status: str | None = Query(None, alias="status"),
     offset: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
-    admin: Account = Depends(get_current_admin),
+    admin: StaffMember = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
     stmt = select(Inquiry)
@@ -53,10 +54,10 @@ async def list_all_inquiries(
     stmt = stmt.order_by(Inquiry.created_at.desc()).offset(offset).limit(limit)
     result = await db.execute(stmt)
     inquiries = list(result.scalars().all())
-    name_map = await get_display_name_map(db, [inq.account_id for inq in inquiries])
+    name_map = await get_display_name_map(db, [inq.user_id for inq in inquiries])
     return [
         InquiryResponse.model_validate(inq, from_attributes=True).model_copy(
-            update={"account_display_name": name_map.get(inq.account_id)}
+            update={"user_display_name": name_map.get(inq.user_id)}
         )
         for inq in inquiries
     ]
@@ -66,7 +67,7 @@ async def list_all_inquiries(
 async def reply_inquiry(
     inquiry_id: int,
     body: InquiryReplyRequest,
-    admin: Account = Depends(get_current_admin),
+    admin: StaffMember = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(select(Inquiry).where(Inquiry.id == inquiry_id))
@@ -79,16 +80,16 @@ async def reply_inquiry(
     db.add(inquiry)
     await db.commit()
     await db.refresh(inquiry)
-    name_map = await get_display_name_map(db, [inquiry.account_id])
+    name_map = await get_display_name_map(db, [inquiry.user_id])
     return InquiryResponse.model_validate(inquiry, from_attributes=True).model_copy(
-        update={"account_display_name": name_map.get(inquiry.account_id)}
+        update={"user_display_name": name_map.get(inquiry.user_id)}
     )
 
 
 @router.delete("/{inquiry_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_inquiry(
     inquiry_id: int,
-    admin: Account = Depends(get_current_admin),
+    admin: StaffMember = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(select(Inquiry).where(Inquiry.id == inquiry_id))

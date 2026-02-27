@@ -1,10 +1,13 @@
+from typing import Union
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies import get_current_account
-from app.models.account import Account
+from app.models.user import User
+from app.models.staff_member import StaffMember
 from app.models.message import Message, SenderType
 from app.models.session import Session, SessionStatus
 from app.schemas.message import MessagePollResponse, MessageResponse, MessageSendRequest
@@ -20,7 +23,7 @@ CREDIT_COST_PER_MESSAGE = 1
 @router.post("/send", response_model=MessageResponse, status_code=status.HTTP_201_CREATED)
 async def send_message(
     body: MessageSendRequest,
-    account: Account = Depends(get_current_account),
+    account: Union[User, StaffMember] = Depends(get_current_account),
     db: AsyncSession = Depends(get_db),
 ):
     # セッション存在確認 + 権限チェック
@@ -28,13 +31,13 @@ async def send_message(
     session = result.scalar_one_or_none()
     if session is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="セッションが見つかりません")
-    if session.user_account_id != account.id and account.role.value not in ("staff", "admin"):
+    if isinstance(account, User) and session.user_id != account.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="権限がありません")
     if session.status != SessionStatus.active:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="このセッションは終了しています")
 
     # ユーザーの場合はクレジット減算
-    if account.role.value == "user":
+    if isinstance(account, User):
         await deduct_credits(db, account, CREDIT_COST_PER_MESSAGE)
         sender_type = SenderType.user
     else:
@@ -59,7 +62,7 @@ async def send_message(
 async def poll_messages(
     session_id: int = Query(...),
     last_message_id: int = Query(0),
-    account: Account = Depends(get_current_account),
+    account: Union[User, StaffMember] = Depends(get_current_account),
     db: AsyncSession = Depends(get_db),
 ):
     # セッション権限チェック
@@ -67,7 +70,7 @@ async def poll_messages(
     session = result.scalar_one_or_none()
     if session is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="セッションが見つかりません")
-    if session.user_account_id != account.id and account.role.value not in ("staff", "admin"):
+    if isinstance(account, User) and session.user_id != account.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="権限がありません")
 
     messages = await get_messages_after(db, session_id, last_message_id)

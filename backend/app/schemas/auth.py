@@ -17,13 +17,22 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
 
 
-class AccountResponse(BaseModel):
+class UserResponse(BaseModel):
     id: int
     email: str
     display_name: str
     credit_balance: int
-    role: str
     status: str
     avatar_url: str | None
+
+    model_config = {"from_attributes": True}
+
+
+class StaffMemberResponse(BaseModel):
+    id: int
+    email: str
+    display_name: str
+    role: str
+    status: str
 
     model_config = {"from_attributes": True}

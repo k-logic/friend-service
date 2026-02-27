@@ -1,10 +1,13 @@
+from typing import Union
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select, func
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies import get_current_account, get_current_admin, get_current_staff
-from app.models.account import Account
+from app.models.user import User
+from app.models.staff_member import StaffMember, StaffRole
 from app.models.persona import Persona
 from app.schemas.persona import PersonaCreateRequest, PersonaResponse, PersonaUpdateRequest
 
@@ -15,7 +18,7 @@ router = APIRouter(prefix="/api/v1/personas", tags=["ペルソナ"])
 async def list_personas(
     offset: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
-    account: Account = Depends(get_current_account),
+    account: Union[User, StaffMember] = Depends(get_current_account),
     db: AsyncSession = Depends(get_db),
 ):
     stmt = select(Persona).where(Persona.is_active == True).offset(offset).limit(limit)
@@ -26,7 +29,7 @@ async def list_personas(
 @router.get("/{persona_id}", response_model=PersonaResponse)
 async def get_persona(
     persona_id: int,
-    account: Account = Depends(get_current_account),
+    account: Union[User, StaffMember] = Depends(get_current_account),
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(select(Persona).where(Persona.id == persona_id))
@@ -39,11 +42,11 @@ async def get_persona(
 @router.post("", response_model=PersonaResponse, status_code=status.HTTP_201_CREATED)
 async def create_persona(
     body: PersonaCreateRequest,
-    admin: Account = Depends(get_current_admin),
+    admin: StaffMember = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
     persona = Persona(
-        staff_account_id=admin.id,
+        staff_id=admin.id,
         name=body.name,
         gender=body.gender,
         age=body.age,
@@ -61,14 +64,14 @@ async def create_persona(
 async def update_persona(
     persona_id: int,
     body: PersonaUpdateRequest,
-    staff: Account = Depends(get_current_staff),
+    staff: StaffMember = Depends(get_current_staff),
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(select(Persona).where(Persona.id == persona_id))
     persona = result.scalar_one_or_none()
     if persona is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="ペルソナが見つかりません")
-    if persona.staff_account_id != staff.id and staff.role.value != "admin":
+    if persona.staff_id != staff.id and staff.role != StaffRole.admin:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="権限がありません")
 
     update_data = body.model_dump(exclude_unset=True)
@@ -83,9 +86,9 @@ async def update_persona(
 
 @router.get("/staff/mine", response_model=list[PersonaResponse])
 async def list_my_personas(
-    staff: Account = Depends(get_current_staff),
+    staff: StaffMember = Depends(get_current_staff),
     db: AsyncSession = Depends(get_db),
 ):
-    stmt = select(Persona).where(Persona.staff_account_id == staff.id).order_by(Persona.created_at.desc())
+    stmt = select(Persona).where(Persona.staff_id == staff.id).order_by(Persona.created_at.desc())
     result = await db.execute(stmt)
     return list(result.scalars().all())

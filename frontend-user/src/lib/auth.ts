@@ -7,7 +7,6 @@ export type Account = {
   email: string;
   display_name: string;
   credit_balance: number;
-  role: string;
   status: string;
   avatar_url: string | null;
 };

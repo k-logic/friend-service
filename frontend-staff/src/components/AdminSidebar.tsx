@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth";
-import { apiFetch, clearToken } from "@/lib/api";
+import { clearToken } from "@/lib/api";
 
 const NAV_SECTIONS = [
   {
@@ -26,9 +26,15 @@ const NAV_SECTIONS = [
   },
   {
     title: "ユーザ管理",
-    adminOnly: true,
+    adminOnly: false,
     items: [
       { href: "/admin/users", label: "ユーザ検索" },
+    ],
+  },
+  {
+    title: "ユーザ管理（管理者）",
+    adminOnly: true,
+    items: [
       { href: "/admin/age-verification", label: "年齢認証管理" },
     ],
   },
@@ -62,21 +68,6 @@ const NAV_SECTIONS = [
 export default function AdminSidebar() {
   const { account } = useAuth();
   const pathname = usePathname();
-  const [unreadCount, setUnreadCount] = useState(0);
-
-  useEffect(() => {
-    apiFetch<{ id: number }[]>("/api/v1/notifications?unread_only=true&limit=100")
-      .then((data) => setUnreadCount(data.length))
-      .catch(() => {});
-
-    const interval = setInterval(() => {
-      apiFetch<{ id: number }[]>("/api/v1/notifications?unread_only=true&limit=100")
-        .then((data) => setUnreadCount(data.length))
-        .catch(() => {});
-    }, 30000);
-
-    return () => clearInterval(interval);
-  }, []);
 
   const handleLogout = () => {
     clearToken();
@@ -105,11 +96,6 @@ export default function AdminSidebar() {
                 }`}
               >
                 {item.label}
-                {item.href === "/notifications" && unreadCount > 0 && (
-                  <span className="ml-2 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold text-white bg-red-500 rounded-full">
-                    {unreadCount}
-                  </span>
-                )}
               </Link>
             ))}
           </div>

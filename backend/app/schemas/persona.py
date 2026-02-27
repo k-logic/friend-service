@@ -24,7 +24,7 @@ class PersonaUpdateRequest(BaseModel):
 
 class PersonaResponse(BaseModel):
     id: int
-    staff_account_id: int
+    staff_id: int
     name: str
     gender: str | None
     age: int | None

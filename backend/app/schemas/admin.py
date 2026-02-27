@@ -7,16 +7,13 @@ from pydantic import BaseModel, EmailStr
 class AdminUserSearchParams(BaseModel):
     email: str | None = None
     display_name: str | None = None
-    role: str | None = None
     status: str | None = None
-    gender: str | None = None
 
 
 class AdminUserCreateRequest(BaseModel):
     email: EmailStr
     display_name: str
     password: str
-    role: str = "user"
 
 
 class AdminUserResponse(BaseModel):
@@ -24,7 +21,6 @@ class AdminUserResponse(BaseModel):
     email: str
     display_name: str
     credit_balance: int
-    role: str
     status: str
     avatar_url: str | None
     created_at: datetime
@@ -44,8 +40,8 @@ class UserCountByStatus(BaseModel):
 # --- 問い合わせ ---
 class InquiryResponse(BaseModel):
     id: int
-    account_id: int
-    account_display_name: str | None = None
+    user_id: int
+    user_display_name: str | None = None
     subject: str
     body: str
     status: str
@@ -157,8 +153,8 @@ class LineBotAccountResponse(BaseModel):
 # --- 年齢認証 ---
 class AgeVerificationResponse(BaseModel):
     id: int
-    account_id: int
-    account_display_name: str | None = None
+    user_id: int
+    user_display_name: str | None = None
     status: str
     submitted_at: datetime
     reviewed_at: datetime | None

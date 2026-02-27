@@ -14,13 +14,9 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
       return;
     }
-    apiFetch<Account>("/api/v1/auth/me")
+    apiFetch<Account>("/api/v1/staff/auth/me")
       .then((acc) => {
-        if (acc.role === "staff" || acc.role === "admin") {
-          setAccount(acc);
-        } else {
-          clearToken();
-        }
+        setAccount(acc);
       })
       .catch(() => clearToken())
       .finally(() => setLoading(false));

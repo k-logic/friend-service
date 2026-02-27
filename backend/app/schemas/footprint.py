@@ -9,7 +9,7 @@ class FootprintCreateRequest(BaseModel):
 
 class FootprintResponse(BaseModel):
     id: int
-    visitor_account_id: int
+    user_id: int
     persona_id: int
     created_at: datetime
 

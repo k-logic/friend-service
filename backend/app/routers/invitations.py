@@ -7,9 +7,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies import get_current_admin
-from app.models.account import Account, AccountRole
+from app.models.user import User
+from app.models.staff_member import StaffMember
 from app.models.invitation import InvitationToken
-from app.models.notification import Notification, NotificationType
 from app.schemas.auth import TokenResponse
 from app.schemas.invitation import (
     InvitationCreateRequest,
@@ -28,11 +28,11 @@ INVITE_EXPIRE_HOURS = 72
 @router.post("", response_model=InvitationResponse, status_code=status.HTTP_201_CREATED)
 async def create_invitation(
     body: InvitationCreateRequest,
-    admin: Account = Depends(get_current_admin),
+    admin: StaffMember = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    # 既存アカウントチェック
-    result = await db.execute(select(Account).where(Account.email == body.email))
+    # 既存ユーザーチェック
+    result = await db.execute(select(User).where(User.email == body.email))
     if result.scalar_one_or_none() is not None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -60,7 +60,7 @@ async def create_invitation(
 async def list_invitations(
     offset: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
-    admin: Account = Depends(get_current_admin),
+    admin: StaffMember = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
     stmt = (
@@ -98,46 +98,31 @@ async def register_by_invitation(
     invitation = await _get_valid_invitation(db, token)
 
     # メールアドレス重複チェック
-    result = await db.execute(select(Account).where(Account.email == invitation.email))
+    result = await db.execute(select(User).where(User.email == invitation.email))
     if result.scalar_one_or_none() is not None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="このメールアドレスは既に登録されています",
         )
 
-    # アカウント作成（ランダムパスワード）
+    # ユーザー作成（ランダムパスワード）
     random_password = secrets.token_urlsafe(16)
-    account = Account(
+    user = User(
         email=invitation.email,
         display_name=body.display_name,
         hashed_password=hash_password(random_password),
-        role=AccountRole.user,
     )
-    db.add(account)
+    db.add(user)
     await db.flush()
 
     # トークンを使用済みに更新
     invitation.used_at = datetime.now(timezone.utc)
-    invitation.used_by = account.id
+    invitation.used_by = user.id
     db.add(invitation)
-
-    # 全staff/adminアカウントに通知
-    result = await db.execute(
-        select(Account).where(Account.role.in_([AccountRole.staff, AccountRole.admin]))
-    )
-    staff_accounts = result.scalars().all()
-    for staff in staff_accounts:
-        notification = Notification(
-            account_id=staff.id,
-            type=NotificationType.system,
-            title="新規ユーザー登録",
-            body=f"{body.display_name}（{invitation.email}）が招待リンクから登録しました",
-        )
-        db.add(notification)
 
     await db.commit()
 
-    access_token = create_access_token(account.id, account.role.value)
+    access_token = create_access_token(user.id, "user")
     return TokenResponse(access_token=access_token)
 
 

@@ -2,11 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
 import StaffLayout from "@/components/StaffLayout";
 
-type User = { id: number; email: string; display_name: string; credit_balance: number; role: string; status: string; created_at: string };
+type User = { id: number; email: string; display_name: string; credit_balance: number; status: string; created_at: string };
 
 export default function AdminUsersPage() {
+  const { account } = useAuth();
+  const isAdmin = account?.role === "admin";
   const [users, setUsers] = useState<User[]>([]);
   const [search, setSearch] = useState("");
 
@@ -48,9 +51,8 @@ export default function AdminUsersPage() {
               <th className="p-2 text-left">メール</th>
               <th className="p-2 text-left">名前</th>
               <th className="p-2">残高</th>
-              <th className="p-2">ロール</th>
               <th className="p-2">ステータス</th>
-              <th className="p-2">操作</th>
+              {isAdmin && <th className="p-2">操作</th>}
             </tr>
           </thead>
           <tbody>
@@ -60,15 +62,16 @@ export default function AdminUsersPage() {
                 <td className="p-2">{u.email}</td>
                 <td className="p-2">{u.display_name}</td>
                 <td className="p-2 text-center">{u.credit_balance}</td>
-                <td className="p-2 text-center">{u.role}</td>
                 <td className="p-2 text-center">
                   <span className={u.status === "active" ? "text-green-600" : "text-red-600"}>{u.status}</span>
                 </td>
-                <td className="p-2 text-center">
-                  <button onClick={() => toggleStatus(u)} className="text-blue-600 hover:underline">
-                    {u.status === "active" ? "停止" : "有効化"}
-                  </button>
-                </td>
+                {isAdmin && (
+                  <td className="p-2 text-center">
+                    <button onClick={() => toggleStatus(u)} className="text-blue-600 hover:underline">
+                      {u.status === "active" ? "停止" : "有効化"}
+                    </button>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>

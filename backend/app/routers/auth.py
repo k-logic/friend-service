@@ -1,4 +1,3 @@
-import os
 import time
 from pathlib import Path
 
@@ -7,10 +6,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.dependencies import get_current_account
-from app.models.account import Account
-from app.schemas.auth import AccountResponse, LoginRequest, RegisterRequest, TokenResponse
-from app.services.auth_service import authenticate, create_access_token, hash_password
+from app.dependencies import get_current_user
+from app.models.user import User
+from app.schemas.auth import LoginRequest, RegisterRequest, TokenResponse, UserResponse
+from app.services.auth_service import authenticate_user, create_access_token, hash_password
 
 UPLOAD_DIR = Path("/app/uploads/avatars")
 ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp"}
@@ -21,42 +20,42 @@ router = APIRouter(prefix="/api/v1/auth", tags=["認証"])
 
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)):
-    existing = await db.execute(select(Account).where(Account.email == body.email))
+    existing = await db.execute(select(User).where(User.email == body.email))
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="このメールアドレスは既に登録されています")
 
-    account = Account(
+    user = User(
         email=body.email,
         display_name=body.display_name,
         hashed_password=hash_password(body.password),
     )
-    db.add(account)
+    db.add(user)
     await db.commit()
-    await db.refresh(account)
+    await db.refresh(user)
 
-    token = create_access_token(account.id, account.role.value)
+    token = create_access_token(user.id, "user")
     return TokenResponse(access_token=token)
 
 
 @router.post("/login", response_model=TokenResponse)
 async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
-    account = await authenticate(db, body.email, body.password)
-    if account is None:
+    user = await authenticate_user(db, body.email, body.password)
+    if user is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="メールアドレスまたはパスワードが正しくありません")
 
-    token = create_access_token(account.id, account.role.value)
+    token = create_access_token(user.id, "user")
     return TokenResponse(access_token=token)
 
 
-@router.get("/me", response_model=AccountResponse)
-async def get_me(account: Account = Depends(get_current_account)):
-    return account
+@router.get("/me", response_model=UserResponse)
+async def get_me(user: User = Depends(get_current_user)):
+    return user
 
 
-@router.post("/avatar", response_model=AccountResponse)
+@router.post("/avatar", response_model=UserResponse)
 async def upload_avatar(
     file: UploadFile,
-    account: Account = Depends(get_current_account),
+    user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     if file.content_type not in ALLOWED_TYPES:
@@ -67,13 +66,13 @@ async def upload_avatar(
         raise HTTPException(status_code=400, detail="ファイルサイズは5MB以下にしてください")
 
     ext = file.filename.rsplit(".", 1)[-1].lower() if file.filename and "." in file.filename else "jpg"
-    filename = f"avatar_{account.id}_{int(time.time())}.{ext}"
+    filename = f"avatar_{user.id}_{int(time.time())}.{ext}"
 
     UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
     # 旧アバターファイルを削除
-    if account.avatar_url:
-        old_path = Path("/app") / account.avatar_url.lstrip("/")
+    if user.avatar_url:
+        old_path = Path("/app") / user.avatar_url.lstrip("/")
         if old_path.exists():
             old_path.unlink()
 
@@ -81,7 +80,7 @@ async def upload_avatar(
     with open(filepath, "wb") as f:
         f.write(data)
 
-    account.avatar_url = f"/uploads/avatars/{filename}"
+    user.avatar_url = f"/uploads/avatars/{filename}"
     await db.commit()
-    await db.refresh(account)
-    return account
+    await db.refresh(user)
+    return user
