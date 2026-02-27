@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import Link from "next/link";
 import { useAuth } from "@/lib/auth";
 import { apiUpload, toFullUrl } from "@/lib/api";
 import AppLayout from "@/components/AppLayout";
@@ -66,10 +67,21 @@ export default function MyPage() {
 
           <div className="border-t pt-4">
             <dl className="space-y-2 text-sm">
-              <div className="flex justify-between">
+              <div className="flex justify-between items-center">
                 <dt className="text-gray-500">ポイント残高</dt>
                 <dd className="font-bold text-teal-600">{account?.credit_balance} pt</dd>
               </div>
+            </dl>
+            <Link
+              href="/credits"
+              className="mt-3 block w-full text-center bg-teal-500 text-white text-sm py-2.5 rounded-lg hover:bg-teal-600 transition-colors"
+            >
+              ポイント購入
+            </Link>
+          </div>
+
+          <div className="border-t pt-4">
+            <dl className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <dt className="text-gray-500">ステータス</dt>
                 <dd>{account?.status === "active" ? "有効" : "停止中"}</dd>
