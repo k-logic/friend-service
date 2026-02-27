@@ -15,7 +15,7 @@ services:
     environment:
       - DATABASE_URL=postgresql+asyncpg://friend:${POSTGRES_PASSWORD}@db:5432/friend
       - SECRET_KEY=${SECRET_KEY}
-      - ALLOWED_ORIGINS=https://${APP_DOMAIN},https://${STAFF_DOMAIN}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-https://${APP_DOMAIN},https://${STAFF_DOMAIN}}
     volumes:
       - upload_data:/app/uploads
       # 開発用のソースマウントを無効化（イメージ内のコードを使う）
@@ -44,12 +44,12 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - NEXT_PUBLIC_API_URL=https://${API_DOMAIN}
+      - NEXT_PUBLIC_API_URL=${FRONTEND_API_URL:-https://${API_DOMAIN}}
     volumes: []
 
   frontend-staff:
     ports:
       - "3001:3001"
     environment:
-      - NEXT_PUBLIC_API_URL=https://${API_DOMAIN}
+      - NEXT_PUBLIC_API_URL=${FRONTEND_API_URL:-https://${API_DOMAIN}}
     volumes: []
