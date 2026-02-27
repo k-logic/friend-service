@@ -38,7 +38,7 @@ proxy-node-1/2    → Nginx プロキシ（スタッフIP隠匿）
 |------|------|------|
 | さがす | `/search` | ペルソナをグリッド（サークルアバター）でブラウズ・検索 |
 | ペルソナ詳細 | `/persona/[id]` | ペルソナのプロフィール表示、いいね・足跡記録、チャット開始 |
-| メッセージ一覧 | `/messages` | やり取り中のペルソナ一覧（activeセッションのみ表示）。アバター・名前・年齢・日時・最新メッセージプレビュー・NEWバッジ表示 |
+| メッセージ一覧 | `/messages` | やり取り中のペルソナ一覧（activeセッションのみ表示）。アバター・名前・年齢・日時・最新ペルソナ返信プレビュー（15文字）表示 |
 | チャット | `/chat/[id]` | 吹き出し形式。ペルソナ側=ピンク/左寄せ、ユーザー側=ベージュ/右寄せ。送信者名（ユーザー名/ペルソナ名）表示 |
 | いいね | `/likes` | いいね一覧（ページロード時にサーバーから状態取得） |
 | 足跡 | `/footprints` | 閲覧履歴 |
@@ -82,7 +82,8 @@ proxy-node-1/2    → Nginx プロキシ（スタッフIP隠匿）
 |-----------|-----------|---------|
 | オペレーター | staff, admin | チャット、ペルソナ検索、テンプレート、お知らせ（未読バッジ付き） |
 | ペルソナ管理 | admin のみ | ペルソナ一覧・作成 |
-| ユーザ管理 | admin のみ | ユーザ検索、年齢認証管理 |
+| ユーザ管理（検索） | staff, admin | ユーザ検索 |
+| ユーザ管理（管理者） | admin のみ | 年齢認証管理 |
 | 有料情報関連 | admin のみ | 有料情報管理 |
 | メール関連 | admin のみ | メール配信、招待管理 |
 | サポート | admin のみ | 問い合わせ管理 |
@@ -98,7 +99,7 @@ proxy-node-1/2    → Nginx プロキシ（スタッフIP隠匿）
 | ペルソナ管理 | `/personas` | admin のみ | ペルソナ一覧・作成・編集（staffはリダイレクト） |
 | テンプレート | `/templates` | staff, admin | 定型文の登録・編集 |
 | お知らせ | `/notifications` | staff, admin | システム通知一覧・既読管理 |
-| ユーザ検索 | `/admin/users` | admin のみ | ユーザー管理 |
+| ユーザ検索 | `/admin/users` | staff, admin | ユーザー検索（staffは閲覧のみ、adminはステータス変更可） |
 | 年齢認証管理 | `/admin/age-verification` | admin のみ | 年齢認証の承認/却下 |
 | 有料情報管理 | `/admin/paid-contents` | admin のみ | 有料情報の設定 |
 | メール配信 | `/admin/mail` | admin のみ | 一斉/予約/定期送信 |
@@ -160,9 +161,13 @@ proxy-node-1/2    → Nginx プロキシ（スタッフIP隠匿）
 
 ### 認証・認可
 
-3つの認証依存関数でロールベースアクセス制御:
-- `get_current_account` — 全認証済みユーザー（user/staff/admin）
-- `get_current_staff` — staff + admin のみ
+テーブル分離済み: users（顧客）と staff_members（運営者）は別テーブル。JWTにtype（user/staff）を含む。
+認証エンドポイントも分離: ユーザー `/api/v1/auth/*`、スタッフ `/api/v1/staff/auth/*`
+
+4つの認証依存関数でロールベースアクセス制御:
+- `get_current_account` — 全認証済みユーザー（user/staff/admin）、Union[User, StaffMember]を返す
+- `get_current_user` — user のみ（staffトークンは401）
+- `get_current_staff` — staff + admin のみ（userトークンは403）
 - `get_current_admin` — admin のみ
 
 ### APIエンドポイント（16ルーター）
@@ -183,7 +188,7 @@ proxy-node-1/2    → Nginx プロキシ（スタッフIP隠匿）
 | お知らせAPI | account | システム通知の取得（未読フィルタ対応）・個別既読・一括既読 |
 | お問い合わせAPI | account / admin | 問い合わせ送信（ユーザー側）・一覧/返信/一括返信/削除（admin側） |
 | 招待API | admin（発行・一覧）/ なし（検証・登録） | トークン発行（POST）・一覧（GET）・検証（GET /{token}/verify）・登録（POST /{token}/register） |
-| ユーザ管理API | admin | 検索（全体/性別/ステータス別）、追加、年齢認証管理、停止/退避、ステータス別人数集計 |
+| ユーザ管理API | staff（検索・閲覧）/ admin（変更・作成） | 検索（全体/性別/ステータス別）、追加、年齢認証管理、停止/退避、ステータス別人数集計 |
 | 画像管理API | admin | アップロード画像の一覧・承認・削除 |
 | 有料情報API | admin | 有料情報の設定・一覧取得 |
 | メール配信API | admin | 一斉送信・予約送信・定期送信の作成/一覧、トリガーメール設定、遅延キュー確認 |
@@ -195,25 +200,26 @@ proxy-node-1/2    → Nginx プロキシ（スタッフIP隠匿）
 
 ## DBスキーマ
 
-- **accounts**: id, email, display_name, hashed_password, credit_balance, role(user/staff/admin), status(active/suspended), avatar_url, created_at, updated_at
-- **personas**: id, staff_account_id(FK), name, age, avatar_url, bio, attributes(JSONB), is_active, created_at, updated_at
-- **sessions**: id, user_account_id(FK), persona_id(FK), status(active/closed), created_at, updated_at
-  - PARTIAL UNIQUE INDEX: (user_account_id, persona_id) WHERE status='active' — 同一ユーザー×ペルソナのactiveセッションは1つのみ
+- **users**: id, email, display_name, hashed_password, credit_balance, status(active/suspended), avatar_url, created_at, updated_at
+- **staff_members**: id, email, display_name, hashed_password, role(staff/admin), status(active/suspended), created_at, updated_at
+- **personas**: id, staff_id(FK→staff_members), name, age, avatar_url, bio, attributes(JSONB), is_active, created_at, updated_at
+- **sessions**: id, user_id(FK→users), persona_id(FK), status(active/closed), created_at, updated_at
+  - PARTIAL UNIQUE INDEX: (user_id, persona_id) WHERE status='active' — 同一ユーザー×ペルソナのactiveセッションは1つのみ
 - **messages**: id(BIGINT), session_id(FK), sender_type(user/persona), sender_id, title, content, image_url, credit_cost, created_at
   - INDEX: (session_id, id) で差分ポーリング高速化
-- **likes**: id, user_account_id(FK), persona_id(FK), created_at
-  - UNIQUE: (user_account_id, persona_id)
-- **footprints**: id, visitor_account_id(FK), persona_id(FK), created_at
+- **likes**: id, user_id(FK→users), persona_id(FK), created_at
+  - UNIQUE: (user_id, persona_id)
+- **footprints**: id, user_id(FK→users), persona_id(FK), created_at
   - INDEX: (persona_id, created_at) でスタッフ側の閲覧用
-- **notifications**: id, account_id(FK), type(enum: system/like/message/credit), title, body, is_read, created_at
-- **invitation_tokens**: id, token(String(64), unique, index), email, created_by(FK→accounts), expires_at, used_at, used_by(FK→accounts), created_at
-- **inquiries**: id, account_id(FK), subject, body, status(open/replied/closed), admin_reply, replied_at, created_at
-- **templates**: id, staff_account_id(FK), label(例: %OPE01%), content, created_at, updated_at
+- **notifications**: id, user_id(FK→users), type(enum: system/like/message/credit), title, body, is_read, created_at
+- **invitation_tokens**: id, token(String(64), unique, index), email, created_by(FK→staff_members), expires_at, used_at, used_by(FK→users), created_at
+- **inquiries**: id, user_id(FK→users), subject, body, status(open/replied/closed), admin_reply, replied_at, created_at
+- **templates**: id, staff_id(FK→staff_members), label(例: %OPE01%), content, created_at, updated_at
 - **paid_contents**: id, title, description, price, is_active, created_at, updated_at
 - **mail_campaigns**: id, type(enum: blast/scheduled/periodic/trigger), subject, body, target_filter(JSONB), scheduled_at, interval, status(draft/scheduled/sent/active), created_at
 - **trigger_mail_settings**: id, trigger_event(enum), mail_campaign_id(FK), delay_minutes, is_active, created_at
 - **line_bot_accounts**: id, line_bot_id, memo, webhook_url, is_active, subscriber_count, monthly_delivery_count, created_at, updated_at
-- **age_verifications**: id, account_id(FK), status(enum: pending/approved/rejected), submitted_at, reviewed_at, reviewer_id(FK)
+- **age_verifications**: id, user_id(FK→users), status(enum: pending/approved/rejected), submitted_at, reviewed_at, reviewer_id(FK→staff_members)
 
 ### Alembicマイグレーション
 
@@ -222,6 +228,7 @@ proxy-node-1/2    → Nginx プロキシ（スタッフIP隠匿）
 | `b0235a46ef8f` | 初期テーブル作成（全15テーブル + セッション部分ユニークインデックス） |
 | `a1b2c3d4e5f6` | invitation_tokensテーブル追加 |
 | `b2c3d4e5f6a7` | invitation_tokensからpersona_idカラム削除 |
+| `d4e5f6a7b8c9` | accountsテーブルをusers + staff_membersに分離、FK参照カラムリネーム |
 
 ---
 
@@ -236,6 +243,8 @@ proxy-node-1/2    → Nginx プロキシ（スタッフIP隠匿）
 - Tailwindブレークポイント: sm(640px), md(768px), lg(1024px)
 - 全ページ: p-4 md:p-8、グリッド: grid-cols-2 sm:grid-cols-3 md:grid-cols-4
 - AppLayout: pb-16 md:pb-0（ボトムナビ分のスペーシング）
+- ポイント購入: モバイルではマイページ内のボタンからアクセス
+- ローディング: LoadingSpinnerコンポーネント（teal色スピナー）を全データ取得ページに適用
 
 ---
 
@@ -259,6 +268,9 @@ proxy-node-1/2    → Nginx プロキシ（スタッフIP隠匿）
 10. 管理画面にユーザー表示名・ペルソナ名を表示 ✅
 11. ユーザー側レスポンシブ対応（モバイル用ボトムナビ） ✅
 12. 本番デプロイ設定（Nginx + docker-compose.prod.yml + CORS） ✅
+13. accountsテーブル分離（users + staff_members）+ 認証エンドポイント分離 ✅
+14. チャットアバター表示 + スタッフ向けユーザー検索開放 ✅
+15. UX改善（ローディングスピナー・モバイルポイント購入導線・メッセージ一覧プレビュー） ✅
 
 ---
 

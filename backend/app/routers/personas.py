@@ -1,10 +1,16 @@
+import time
+from pathlib import Path
 from typing import Union
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+
+UPLOAD_DIR = Path("/app/uploads/personas")
+ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp"}
+MAX_FILE_SIZE = 5 * 1024 * 1024
 from app.dependencies import get_current_account, get_current_admin, get_current_staff
 from app.models.user import User
 from app.models.staff_member import StaffMember, StaffRole
@@ -53,6 +59,7 @@ async def create_persona(
         avatar_url=body.avatar_url,
         bio=body.bio,
         attributes=body.attributes,
+        registered_at=body.registered_at,
     )
     db.add(persona)
     await db.commit()
@@ -79,6 +86,47 @@ async def update_persona(
         setattr(persona, key, value)
 
     db.add(persona)
+    await db.commit()
+    await db.refresh(persona)
+    return persona
+
+
+@router.post("/{persona_id}/avatar", response_model=PersonaResponse)
+async def upload_persona_avatar(
+    persona_id: int,
+    file: UploadFile,
+    staff: StaffMember = Depends(get_current_staff),
+    db: AsyncSession = Depends(get_db),
+):
+    if file.content_type not in ALLOWED_TYPES:
+        raise HTTPException(status_code=400, detail="JPEG, PNG, WebP のみアップロード可能です")
+
+    data = await file.read()
+    if len(data) > MAX_FILE_SIZE:
+        raise HTTPException(status_code=400, detail="ファイルサイズは5MB以下にしてください")
+
+    result = await db.execute(select(Persona).where(Persona.id == persona_id))
+    persona = result.scalar_one_or_none()
+    if persona is None:
+        raise HTTPException(status_code=404, detail="ペルソナが見つかりません")
+    if persona.staff_id != staff.id and staff.role != StaffRole.admin:
+        raise HTTPException(status_code=403, detail="権限がありません")
+
+    ext = file.filename.rsplit(".", 1)[-1].lower() if file.filename and "." in file.filename else "jpg"
+    filename = f"persona_{persona_id}_{int(time.time())}.{ext}"
+
+    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+    if persona.avatar_url:
+        old_path = Path("/app") / persona.avatar_url.lstrip("/")
+        if old_path.exists():
+            old_path.unlink()
+
+    filepath = UPLOAD_DIR / filename
+    with open(filepath, "wb") as f:
+        f.write(data)
+
+    persona.avatar_url = f"/uploads/personas/{filename}"
     await db.commit()
     await db.refresh(persona)
     return persona

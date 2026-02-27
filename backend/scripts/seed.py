@@ -6,6 +6,7 @@
 """
 
 import asyncio
+from datetime import date
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -47,6 +48,7 @@ SEED_PERSONAS = [
         "gender": Gender.female,
         "age": 24,
         "bio": "カフェ巡りとお菓子作りが趣味です。気軽にお話ししましょう！",
+        "registered_at": date(2026, 1, 15),
     },
     {
         "staff_email": "staff@example.com",
@@ -54,6 +56,7 @@ SEED_PERSONAS = [
         "gender": Gender.male,
         "age": 27,
         "bio": "映画と音楽が好きです。おすすめがあったら教えてください。",
+        "registered_at": date(2026, 2, 1),
     },
 ]
 
@@ -123,6 +126,7 @@ async def seed(db: AsyncSession) -> None:
             gender=data.get("gender"),
             age=data.get("age"),
             bio=data.get("bio"),
+            registered_at=data.get("registered_at"),
             is_active=True,
         )
         db.add(persona)

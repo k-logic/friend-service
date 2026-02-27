@@ -12,6 +12,7 @@ type Persona = {
   age: number | null;
   avatar_url: string | null;
   bio: string | null;
+  registered_at: string | null;
 };
 
 export default function PersonaDetailPage() {
@@ -83,6 +84,11 @@ export default function PersonaDetailPage() {
             {persona.gender && persona.age ? " / " : ""}
             {persona.age ? `${persona.age}歳` : ""}
           </p>
+          {persona.registered_at && (
+            <p className="text-sm text-gray-400 mt-1">
+              登録日: {new Date(persona.registered_at).toLocaleDateString("ja-JP", { year: "numeric", month: "long", day: "numeric" })}
+            </p>
+          )}
           {persona.bio && <p className="mt-4 text-gray-600 text-sm">{persona.bio}</p>}
 
           <div className="mt-6 flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
